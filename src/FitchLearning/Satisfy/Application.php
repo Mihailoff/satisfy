@@ -62,6 +62,14 @@ class Application
                 ]
             }
         }
+    },
+    "frontend/legacy": {
+        "url": "git://github.com/some/repo.git",
+        "minversion": "1.0",
+        "tag-regexp": ["~^acme-(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)_(?P<pre-release>\\s+)#(?P<build>\\d+)~$"],
+        "defaults": [
+
+        ]
     }
     }
 
@@ -131,8 +139,9 @@ class Application
         return $tags;
     }
 
-    protected function getVersionFromString($string)
+    protected function getVersionFromString($string, $tag_regexp)
     {
+        $string = $this->transformTagName($string, $tag_regexp);
         $version = false;
         if (preg_match('/^v?(\d+\.\d+\.\d+)(-((rc|alpha|beta)\.?(\d+)))?$/', $string, $matches)) {
             $version = $matches[1];
@@ -151,12 +160,12 @@ class Application
      * @param $vcsUrl
      * @return array
      */
-    protected function getValidTagsAtUri($vcsUrl)
+    protected function getValidTagsAtUri($vcsUrl, $tag_regexp)
     {
         $tags = $this->getRemoteUrlTags($vcsUrl);
         $tagsSorted = [];
         foreach ($tags as $tag) {
-            if ($version = $this->getVersionFromString($tag)) {
+            if ($version = $this->getVersionFromString($tag, $tag_regexp)) {
                 $tagsSorted[$version] = $tag;
             }
         }
@@ -195,7 +204,8 @@ class Application
         //        $tagsByPackage = [];
         foreach ($packages as $name => $definition) {
             $vcsUrl = $definition['url'];
-            $tagsSorted = $this->getValidTagsAtUri($vcsUrl);
+            $tag_regexp = isset($definition['tag-regexp']) ? $definition['tag-regexp'] : null;
+            $tagsSorted = $this->getValidTagsAtUri($vcsUrl, $tag_regexp);
 
             if (!$tagsSorted) {
                 throw new \Exception("No tags found for $name");
@@ -257,5 +267,40 @@ class Application
     public function setOutputFile($outputFile)
     {
         $this->outputFile = $outputFile;
+    }
+
+    /**
+     * Normalize tag name according to semver schema
+     *
+     * @param string $tag
+     * @param array regular expressions with named capturing groups
+     * @throws Exception
+     * @return string tag after transformation
+     */
+    protected function transformTagName($tag, $tag_regexp) {
+        if (empty($tag_regexp)) {
+            return $tag;
+        }
+
+        $matches = null;
+        foreach($tag_regexp as $regexp) {
+            if (preg_match($regexp, $tag, $matches) === 1) {
+                break;
+            }
+        }
+
+        if (!$matches) {
+            throw new \Exception("Satisfy warning: tag '{$tag}' doesn't match regexp '{$regexp}'");
+        }
+
+        $major = isset($matches['major']) ? $matches['major'] : 0;
+        $minor = isset($matches['minor']) ? $matches['minor'] : 0;
+        $patch = isset($matches['patch']) ? $matches['patch'] : 0;
+        $pre_release = isset($matches['pre-release']) ? '-' . $matches['pre-release'] : '';
+        $build = isset($matches['build']) ? '+' . $matches['build'] : '';
+
+        $version = "{$major}.{$minor}.{$patch}{$pre_release}{$build}";
+
+        return $version;
     }
 }

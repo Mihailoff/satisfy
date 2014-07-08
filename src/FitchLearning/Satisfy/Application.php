@@ -106,6 +106,7 @@ class Application
 
         $packages = $this->getRequiredPackageList();
         $repo = $this->addPackagesToRepo($packages, $repoDefinition);
+        $repo = $this->removeProcessedRepos($packages, $repo);
 
         $output = json_encode($repo, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         if ($this->outputFile) {
@@ -251,6 +252,34 @@ class Application
         $repoDefinition['repositories'] = array_merge($repoDefinition['repositories'], $foundPackages);
 
         return $repoDefinition;
+    }
+
+    /**
+     * Remove git repositories defined in packagelist from results.
+     * If they could be processed by satis, then no sense to run satisfy.
+     *
+     * @param array $packages
+     * @param array $repo
+     * @return array
+     */
+    protected function removeProcessedRepos($packages, $repo) {
+        $processed_repos = [];
+        foreach($packages as $package) {
+            $processed_repos[] = $package['url'];
+        }
+
+        $new_repo = $repo;
+        $new_repo['repositories'] = [];
+        foreach ($repo['repositories'] as $repository) {
+            if ($repository['type'] == 'git' && in_array($repository['url'], $processed_repos)) {
+                continue;
+            }
+            else {
+                $new_repo['repositories'][] = $repository;
+            }
+        }
+
+        return $new_repo;
     }
 
     /**

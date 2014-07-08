@@ -66,7 +66,7 @@ class Application
     "frontend/legacy": {
         "url": "git://github.com/some/repo.git",
         "minversion": "1.0",
-        "tag-regexp": ["~^acme-(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)_(?P<pre-release>\\s+)#(?P<build>\\d+)~$"],
+        "tag-regexp": ["~^acme-(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)_(?P<maturity>\\s+)#(?P<build>\\d+)~$"],
         "defaults": [
 
         ]
@@ -325,10 +325,16 @@ class Application
         $major = isset($matches['major']) ? $matches['major'] : 0;
         $minor = isset($matches['minor']) ? $matches['minor'] : 0;
         $patch = isset($matches['patch']) ? $matches['patch'] : 0;
-        $pre_release = isset($matches['pre-release']) ? '-' . $matches['pre-release'] : '';
+        $_maturity[] = isset($matches['maturity']) ? '-' . $matches['maturity'] : '';
+        $_maturity[] = isset($matches['maturity_dev']) ? '-dev' . $matches['maturity_dev'] : '';
+        $_maturity[] = isset($matches['maturity_alpha']) ? '-alpha' . $matches['maturity_alpha'] : '';
+        $_maturity[] = isset($matches['maturity_beta']) ? '-beta' . $matches['maturity_beta'] : '';
+        $_maturity[] = isset($matches['maturity_RC']) ? '-RC' . $matches['maturity_RC'] : '';
+        $_maturity = array_filter(array_unique($_maturity));
+        $maturity = empty($_maturity) ? '' : array_shift($_maturity);
         $build = isset($matches['build']) ? '+' . $matches['build'] : '';
 
-        $version = "{$major}.{$minor}.{$patch}{$pre_release}{$build}";
+        $version = "{$major}.{$minor}.{$patch}{$maturity}{$build}";
 
         return $version;
     }
